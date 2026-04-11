@@ -7,7 +7,7 @@
 # Identificação
 
 - **Título do Projeto:**  
-  Nome claro e específico do sistema.
+  CRM Advocacia - Escritório Lucas Quintino
 
 - **Linha de Projeto (Direction):**  
   Web
