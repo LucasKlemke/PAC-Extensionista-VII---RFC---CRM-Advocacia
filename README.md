@@ -545,25 +545,80 @@ Use diagramas sempre que possível.
 
 ## 3.1 Fluxo Principal do Usuário
 
-Apresente o fluxo principal do sistema.
+![Fluxo principal — Login](assets/images/fluxo-principal-1-login.png)
 
-Utilize:
+---
 
-- fluxogramas
-- diagramas de atividades
-- diagramas de sequência
+![Fluxo principal — Cadastro de cliente](assets/images/fluxo-principal-2-cadastro-cliente.png)
 
-Inclua **imagens dos diagramas**.
+---
+
+![Fluxo principal — Cadastro de caso](assets/images/fluxo-principal-3-cadastro-caso.png)
 
 ---
 
 ## 3.2 Fluxos Alternativos
 
-Descreva cenários como:
+Os fluxos alternativos abaixo são derivados dos três fluxos principais descritos na seção 3.1.
 
-- erros
-- cancelamentos
-- exceções
+---
+
+### FA-01 — Login com credenciais inválidas
+
+**Origem:** Fluxo 1 — Login (desvio "Não" na decisão "Credenciais válidas?")
+
+1. O advogado preenche e-mail e/ou senha incorretos e clica em "Entrar".
+2. O sistema valida as credenciais e identifica que são inválidas.
+3. O sistema exibe uma mensagem de erro na tela de login.
+4. O advogado permanece na tela de login e pode corrigir os dados e tentar novamente.
+5. O fluxo retorna ao passo de preenchimento até que as credenciais sejam válidas.
+
+---
+
+### FA-02 — Cancelamento do cadastro de cliente
+
+**Origem:** Fluxo 2 — Cadastro de Cliente (abandono do modal antes de salvar)
+
+1. O advogado navega até Clientes e clica em "Novo cliente".
+2. O modal de cadastro é exibido.
+3. O advogado clica em "Cancelar" ou fecha o modal pelo "X".
+4. O modal é fechado sem que nenhum dado seja salvo.
+5. O advogado retorna à listagem de clientes sem alterações.
+
+---
+
+### FA-03 — CPF já cadastrado
+
+**Origem:** Fluxo 2 — Cadastro de Cliente (violação da regra de unicidade de CPF)
+
+1. O advogado preenche os dados do novo cliente com um CPF que já existe no sistema.
+2. Ao clicar em "Salvar", o sistema identifica o CPF duplicado.
+3. O sistema exibe uma mensagem de erro informando que o CPF já está cadastrado.
+4. O modal permanece aberto para que o advogado corrija o dado.
+5. O cliente não é cadastrado até que um CPF único seja informado.
+
+---
+
+### FA-04 — Cancelamento do cadastro de caso
+
+**Origem:** Fluxo 3 — Cadastro de Caso (abandono do modal antes de criar)
+
+1. O advogado navega até Casos e clica em "Novo caso".
+2. O modal de cadastro é exibido.
+3. O advogado clica em "Cancelar" ou fecha o modal pelo "X".
+4. O modal é fechado sem que nenhum caso seja criado.
+5. O advogado retorna ao pipeline kanban sem alterações.
+
+---
+
+### FA-05 — Tentativa de criar caso sem cliente selecionado
+
+**Origem:** Fluxo 3 — Cadastro de Caso (campo obrigatório não preenchido)
+
+1. O advogado abre o modal "Novo caso" e clica em "Criar" sem selecionar um cliente.
+2. O sistema identifica que o campo Cliente (obrigatório) está vazio.
+3. O sistema exibe uma indicação de erro no campo e não prossegue com a criação.
+4. O modal permanece aberto até que o advogado selecione um cliente válido.
 
 ---
 
@@ -738,62 +793,328 @@ Esta seção demonstra **como o sistema será construído**.
 
 ## 5.1 Diagrama C4
 
-Apresente três níveis.
-## 1. Nível 1: Diagrama de Contexto
-É a **visão macro** do sistema. O foco aqui não é a tecnologia, mas sim como o software se encaixa no ecossistema e no mundo real.
+### Nível 1 — Diagrama de Contexto
 
-* **Objetivo:** Mostrar o sistema como uma "caixa preta" e suas interações básicas com o ambiente externo.
-* **O que incluir:**
-    * **Atores:** Diferentes perfis de usuários (Ex: Cliente, Administrador, Operador).
-    * **Sistemas Externos:** Softwares legados, serviços de terceiros ou provedores de identidade.
-    * **Fluxo de Valor:** Como a informação entra, circula e sai do sistema principal.
+![C4 Nível 1 — Contexto](assets/images/c4-nivel1.png)
 
----
+O sistema **CRM Advocacia** é utilizado exclusivamente pelo **Dr. Lucas Quintino**, advogado titular do escritório, que acessa a plataforma pelo navegador via HTTPS para gerenciar clientes, casos, prazos e templates de mensagens.
 
-## 2. Nível 2: Diagrama de Containers
-Neste estágio, damos o primeiro **"zoom"**. Decompomos o sistema em suas unidades de execução independentes (containers).
+O sistema interage com dois sistemas externos:
 
-* **Objetivo:** Apresentar a arquitetura de alto nível e as decisões tecnológicas fundamentais.
-* **O que incluir:**
-    * **Aplicações Web/Mobile:** Interfaces de usuário (Ex: SPA em React, App Android/iOS).
-    * **Serviços de Backend:** Unidades lógicas de processamento (Ex: API Gateway, Microserviços em Node.js ou Go).
-    * **Armazenamento:** Persistência de dados (Ex: PostgreSQL, MongoDB, Redis).
-    * **Protocolos:** Como os containers se comunicam (Ex: JSON/HTTPS, gRPC, RabbitMQ).
+- **Uazapi / WhatsApp** — API de integração com o WhatsApp utilizada para disparo de mensagens (lembretes, follow-ups e atualizações de casos) aos clientes, via REST API / HTTPS.
+- **Servidor de E-mail** — Responsável pelo envio de notificações de prazos e alertas ao advogado, via SMTP / HTTPS.
 
 ---
 
-## 3. Nível 3: Diagrama de Componentes
-O foco agora é o que acontece **dentro de um único container** (como uma API específica ou um serviço de backend).
+### Nível 2 — Diagrama de Containers
 
-* **Objetivo:** Identificar as responsabilidades internas, padrões de código e a organização lógica.
-* **O que incluir:**
-    * **Estrutura Interna:** Organização das camadas (Ex: Controladores, Serviços, Repositórios e Clientes de API).
-    * **Lógica de Negócio:** Componentes que encapsulam as regras específicas do domínio.
-    * **Interações:** Como os componentes internos se orquestram para processar e responder a uma requisição.
+![C4 Nível 2 — Containers](assets/images/c4-nivel2.png)
+
+O sistema é composto pelos seguintes containers:
+
+| Container | Tecnologia | Responsabilidade |
+|---|---|---|
+| Aplicação Web | Next.js / Tailwind CSS | Interface do usuário. O advogado acessa via browser. |
+| API Routes | Next.js (Route Handlers) | Backend embutido. Processa requisições HTTP, aplica regras de negócio e acessa o banco via Prisma ORM. |
+| Agendador de Notificações | Serviço assíncrono | Consulta prazos cadastrados e dispara mensagens WhatsApp e alertas de e-mail nos intervalos definidos. |
+| Banco de Dados | PostgreSQL | Persistência relacional de clientes, casos, prazos, documentos e histórico de mensagens. |
+| Armazenamento de Arquivos | Azure Blob Storage | Armazena documentos anexados aos casos (petições, contratos, comprovantes). |
+
+A Aplicação Web se comunica com as API Routes via REST / JSON. As API Routes acessam o Banco de Dados via Prisma ORM (TCP) e o Armazenamento de Arquivos via Azure SDK. O Agendador de Notificações consulta o banco e aciona a Uazapi / WhatsApp e o Servidor de E-mail.
+
+---
+
+### Nível 3 — Diagrama de Componentes
+
+![C4 Nível 3 — Componentes](assets/images/c4-nivel3.png)
+
+O detalhamento interno do container **API Routes (Next.js)** revela quatro camadas de componentes:
+
+| Componente | Tecnologia | Responsabilidade |
+|---|---|---|
+| Auth Middleware | NextAuth.js | Valida o token JWT em toda requisição recebida antes de encaminhá-la. |
+| Controllers | Route Handlers | Recebem as requisições HTTP e delegam a execução para os Services. Ex.: `ClienteController`, `CasoController`, `PrazoController`. |
+| Services | TypeScript | Aplicam as regras de negócio. Ex.: validar unicidade de CPF, substituir variáveis `{{nome}}` e `{{processo}}` no template de mensagem. |
+| Repositories | Prisma ORM | Encapsulam o acesso ao banco de dados. Lêem e persistem dados via Prisma. |
+| Clientes Externos | HTTP Clients | Comunicam com APIs de terceiros. Ex.: `UazapiClient` para WhatsApp e `AzureStorageClient` para upload de documentos. |
+
+O fluxo interno segue a sequência: **Auth Middleware → Controllers → Services → Repositories** (para persistência) ou **Services → Clientes Externos** (para integrações externas).
+
 ---
 
 ## 5.2 Modelo de Dados
 
-Apresente:
+### DER — Diagrama Entidade-Relacionamento
 
-- DER (diagrama entidade relacionamento)
-- esquema relacional
-- modelo de documentos (NoSQL)
+![Diagrama Entidade-Relacionamento](assets/images/entidade-relacional.png)
 
-Inclua **diagramas do modelo de dados**.
+---
+
+### Esquema Relacional
+
+O banco de dados é composto por **10 tabelas** que modelam os domínios de autenticação, gestão de clientes, casos, pipeline, prazos, mensagens e documentos.
+
+---
+
+#### `advogado`
+Armazena o único usuário do sistema (o advogado titular).
+
+| Coluna | Tipo | Descrição |
+|---|---|---|
+| id | uuid | Chave primária |
+| nome | varchar(140) | Nome completo |
+| email | varchar | E-mail de acesso |
+| senha_hash | varchar(255) | Senha com hash bcrypt |
+| oab | varchar(20) | Número da OAB |
+| telefone | varchar(20) | Telefone de contato |
+| created_at | timestamp | Data de criação |
+| updated_at | timestamp | Data de atualização |
+
+---
+
+#### `cliente`
+Cadastro dos clientes atendidos pelo escritório.
+
+| Coluna | Tipo | Descrição |
+|---|---|---|
+| id | uuid | Chave primária |
+| nome | varchar(140) | Nome completo |
+| cpf | varchar(14) | CPF (único no sistema) |
+| email | varchar(140) | E-mail do cliente |
+| telefone | varchar(20) | Telefone para WhatsApp |
+| endereco | varchar | Endereço completo |
+| observacoes | text | Anotações livres iniciais |
+| ativo | boolean | Indica se o cliente está ativo |
+| created_at | timestamp | Data de criação |
+| updated_at | timestamp | Data de atualização |
+
+---
+
+#### `estagio_pipeline`
+Define as colunas (etapas) do kanban, configuráveis pelo advogado.
+
+| Coluna | Tipo | Descrição |
+|---|---|---|
+| id | uuid | Chave primária |
+| nome | varchar(50) | Nome da etapa (ex.: "Em Andamento") |
+| ordem | int | Posição da coluna no kanban |
+
+---
+
+#### `caso`
+Registra os processos/casos vinculados a clientes e posicionados no pipeline.
+
+| Coluna | Tipo | Descrição |
+|---|---|---|
+| id | uuid | Chave primária |
+| cliente_id | uuid | FK → `cliente` |
+| estagio_id | uuid | FK → `estagio_pipeline` |
+| tipo_acao | varchar(140) | Área/tipo do processo (ex.: "Civil") |
+| numero_processo | varchar(40) | Número do processo judicial |
+| comarca | varchar(140) | Comarca do processo |
+| descricao | text | Descrição livre do caso |
+| arquivado | boolean | Indica se o caso foi arquivado |
+| prioridade | varchar | Nível de prioridade do caso |
+| created_at | timestamp | Data de criação |
+| updated_at | timestamp | Data de atualização |
+
+---
+
+#### `prazo`
+Prazos processuais e compromissos vinculados a um caso.
+
+| Coluna | Tipo | Descrição |
+|---|---|---|
+| id | uuid | Chave primária |
+| caso_id | uuid | FK → `caso` |
+| tipo | varchar | Tipo do prazo (ex.: "Audiência") |
+| data_prazo | date | Data de vencimento |
+| concluido | boolean | Indica se o prazo foi cumprido |
+| retroativo | boolean | Indica se o prazo foi registrado com data passada |
+| created_at | timestamp | Data de criação |
+| updated_at | timestamp | Data de atualização |
+
+---
+
+#### `notificacoes_prazo`
+Controla quais notificações de prazo já foram disparadas (3 dias antes, 1 dia antes, no dia).
+
+| Coluna | Tipo | Descrição |
+|---|---|---|
+| prazo_id | uuid | FK → `prazo` |
+| tipo | int | Intervalo da notificação (3, 1 ou 0 dias) |
+| enviado | boolean | Indica se a notificação foi enviada |
+| enviada_em | timestamp | Data/hora do envio |
+
+---
+
+#### `template_mensagem`
+Modelos de mensagens reutilizáveis para disparo via WhatsApp.
+
+| Coluna | Tipo | Descrição |
+|---|---|---|
+| id | uuid | Chave primária |
+| nome | varchar(100) | Nome identificador do template |
+| conteudo | text | Conteúdo com variáveis `{{nome}}` e `{{processo}}` |
+| created_at | timestamp | Data de criação |
+| updated_at | timestamp | Data de atualização |
+
+---
+
+#### `historico_mensagem`
+Registro de todas as mensagens disparadas via WhatsApp para os clientes.
+
+| Coluna | Tipo | Descrição |
+|---|---|---|
+| id | uuid | Chave primária |
+| template_id | uuid | FK → `template_mensagem` |
+| cliente_id | uuid | FK → `cliente` |
+| conteudo | text | Conteúdo final enviado (após substituição de variáveis) |
+| tentativas | int | Número de tentativas de envio |
+| enviada | boolean | Indica se o envio foi bem-sucedido |
+| enviada_em | timestamp | Data/hora do envio com sucesso |
+| env_detalhe | text | Detalhes de erro em caso de falha |
+
+---
+
+#### `anotacao`
+Observações e resumos de interações vinculados a um caso específico.
+
+| Coluna | Tipo | Descrição |
+|---|---|---|
+| id | uuid | Chave primária |
+| caso_id | uuid | FK → `caso` |
+| texto | text | Conteúdo da anotação |
+| created_at | timestamp | Data de criação |
+| updated_at | timestamp | Data de atualização |
+
+---
+
+#### `documento`
+Arquivos anexados a casos (petições, contratos, comprovantes).
+
+| Coluna | Tipo | Descrição |
+|---|---|---|
+| id | uuid | Chave primária |
+| caso_id | uuid | FK → `caso` |
+| tipo_arquivo | varchar(50) | Extensão do arquivo (PDF, DOCX, JPG, PNG, JPEG) |
+| url_storage | varchar | URL do arquivo no Azure Blob Storage |
+| tamanho_kb | int | Tamanho do arquivo em KB (máx. 10.240 KB) |
+| created_at | timestamp | Data de criação |
+
+---
+
+### Relacionamentos
+
+| Tabela origem | Cardinalidade | Tabela destino |
+|---|---|---|
+| `caso` | N:1 | `cliente` |
+| `caso` | N:1 | `estagio_pipeline` |
+| `prazo` | N:1 | `caso` |
+| `notificacoes_prazo` | N:1 | `prazo` |
+| `anotacao` | N:1 | `caso` |
+| `documento` | N:1 | `caso` |
+| `historico_mensagem` | N:1 | `cliente` |
+| `historico_mensagem` | N:1 | `template_mensagem` |
 
 ---
 
 ## 5.3 Principais Componentes
 
-Descreva os principais módulos do sistema.
+O sistema é organizado em módulos funcionais que seguem o padrão de camadas definido no C4 Nível 3: **Auth Middleware → Controller → Service → Repository**. Cada módulo concentra suas regras de negócio na camada de Service e delega o acesso ao banco exclusivamente pela camada de Repository (Prisma ORM).
 
-Exemplo:
+---
 
-- API
-- sistema de autenticação
-- módulo de processamento
-- camada de persistência
+### Módulo de Autenticação
+
+**Responsabilidade:** Controla o acesso ao sistema. Toda requisição passa pelo `AuthMiddleware` (NextAuth.js), que valida o token JWT antes de encaminhar ao controller correspondente. A sessão expira após inatividade (RN03) e o sistema possui um único usuário pré-cadastrado via configuração de ambiente (RN02).
+
+**Componentes envolvidos:**
+- `AuthMiddleware` — validação do JWT em todas as rotas protegidas
+- `AuthService` — geração e renovação de tokens
+- Tabela: `advogado`
+
+---
+
+### Módulo de Gestão de Clientes
+
+**Responsabilidade:** Centraliza o cadastro e o ciclo de vida dos clientes do escritório. Aplica regras como unicidade de CPF (RN05) e bloqueio de exclusão permanente quando há casos vinculados (RN04).
+
+**Componentes envolvidos:**
+- `ClienteController` — endpoints de criação, edição, consulta e inativação
+- `ClienteService` — validação de CPF único, regra de inativação vs. exclusão
+- `ClienteRepository` — queries Prisma sobre a tabela `cliente`
+
+---
+
+### Módulo de Gestão de Casos e Pipeline Kanban
+
+**Responsabilidade:** Gerencia os processos jurídicos vinculados a clientes e sua posição no pipeline de atendimento. Garante que todo caso esteja sempre associado a um cliente ativo (RN06) e a uma etapa do pipeline (RN07). Casos arquivados saem do kanban ativo mas permanecem acessíveis no histórico (RN08).
+
+**Componentes envolvidos:**
+- `CasoController` — endpoints de criação, edição, movimentação e arquivamento
+- `CasoService` — validações de vínculo com cliente e estágio, regra de arquivamento
+- `CasoRepository` — queries sobre `caso` e `estagio_pipeline`
+- `EstagioService` — gerencia criação, renomeação, reordenação e exclusão de colunas do kanban, com validação de que a coluna está vazia antes de permitir exclusão (RN09)
+
+---
+
+### Módulo de Prazos e Lembretes
+
+**Responsabilidade:** Registra prazos processuais vinculados a casos e controla o ciclo de notificações. Prazos com data passada são marcados como retroativos (RN11). As notificações nos intervalos de 3 dias, 1 dia e no dia do vencimento são processadas automaticamente pelo agendador (RN12).
+
+**Componentes envolvidos:**
+- `PrazoController` — endpoints de criação, listagem, conclusão e visualização em calendário
+- `PrazoService` — detecção de prazos retroativos, marcação de conclusão
+- `PrazoRepository` — queries sobre `prazo` e `notificacoes_prazo`
+
+---
+
+### Agendador de Notificações (Serviço Assíncrono)
+
+**Responsabilidade:** Serviço independente que executa em segundo plano (RN14). Consulta periodicamente a tabela `notificacoes_prazo` em busca de notificações pendentes e, conforme o intervalo configurado, aciona o `UazapiClient` (WhatsApp) ou o cliente SMTP (e-mail). Registra o resultado de cada disparo com data, hora e detalhe de erro quando houver falha (RN15, RN16).
+
+**Componentes envolvidos:**
+- `NotificacaoScheduler` — loop de verificação de prazos próximos
+- `UazapiClient` — disparo de mensagens WhatsApp via REST
+- `EmailClient` — envio de alertas por SMTP
+- Tabelas: `prazo`, `notificacoes_prazo`
+
+---
+
+### Módulo de Mensagens WhatsApp
+
+**Responsabilidade:** Permite ao advogado criar templates reutilizáveis com variáveis dinâmicas (`{{nome}}`, `{{processo}}`) e disparar mensagens individuais para clientes diretamente pelo sistema. O envio exige que o cliente tenha telefone cadastrado (RN13). Cada disparo é registrado no histórico com status de sucesso ou falha e até 3 tentativas automáticas em caso de erro (RN15, RN16).
+
+**Componentes envolvidos:**
+- `MensagemController` — endpoints de criação de template, disparo e consulta de histórico
+- `MensagemService` — substituição de variáveis no template, validação de telefone, controle de tentativas
+- `MensagemRepository` — queries sobre `template_mensagem` e `historico_mensagem`
+- `UazapiClient` — integração com a API do WhatsApp
+
+---
+
+### Módulo de Anotações e Documentos
+
+**Responsabilidade:** Permite ao advogado registrar observações textuais e anexar arquivos a casos específicos. O upload de arquivos é validado quanto ao tipo (PDF, DOCX, JPG, PNG, JPEG) e tamanho (máximo 10 MB), sendo armazenado no Azure Blob Storage com a URL persistida no banco (RN17, RN18).
+
+**Componentes envolvidos:**
+- `AnotacaoController` / `DocumentoController` — endpoints de criação, listagem e download
+- `DocumentoService` — validação de tipo e tamanho, geração de URL de acesso
+- `AnotacaoRepository` / `DocumentoRepository` — queries sobre `anotacao` e `documento`
+- `AzureStorageClient` — upload e geração de URL via Azure Blob Storage SDK
+
+---
+
+### Módulo de Dashboard e Relatórios
+
+**Responsabilidade:** Consolida e apresenta indicadores gerais do escritório na tela inicial: total de clientes ativos, casos por etapa, prazos próximos e mensagens enviadas (RF27). Também gera relatórios de atendimentos e prazos filtrados por período, cliente ou status (RF28, RF29).
+
+**Componentes envolvidos:**
+- `DashboardController` — endpoint de indicadores gerais
+- `RelatorioController` — endpoints de geração de relatórios
+- `DashboardService` / `RelatorioService` — agregação de dados entre múltiplas tabelas
+- Repositórios: `ClienteRepository`, `CasoRepository`, `PrazoRepository`, `MensagemRepository`
 
 ---
 
