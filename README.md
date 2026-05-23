@@ -1189,46 +1189,45 @@ Utilizado em todo o projeto (frontend e backend). Oferece tipagem estática que 
 
 # 6. Segurança e Privacidade
 
-Inclua preocupações básicas de segurança.
+O sistema adotará práticas básicas de segurança para proteger os dados dos clientes e do escritório:
 
-Exemplos:
-
-- proteção contra OWASP Top 10
-- autenticação e autorização
-- criptografia de dados sensíveis
+- **Autenticação** via e-mail e senha com hash (bcrypt), com suporte a sessões expiráveis.
+- **Autorização** baseada em perfis (admin, advogado, secretária), controlando o acesso por funcionalidade.
+- **Criptografia** de dados sensíveis em trânsito via HTTPS/TLS.
+- **Validação de entradas** no backend para prevenção de SQL Injection e XSS.
+- **Logs de acesso** para rastreabilidade de ações críticas.
 
 ---
 
 ## 6.1 Privacidade e LGPD
 
-Explique:
+O sistema coleta e armazena dados pessoais de clientes, como nome, CPF, e-mail, telefone e informações processuais. Em conformidade com a LGPD (Lei nº 13.709/2018):
 
-- quais dados serão coletados
-- como serão armazenados
-- como o usuário poderá solicitar remoção de dados
+- Os dados são coletados apenas para finalidades relacionadas à prestação do serviço jurídico.
+- São armazenados em banco de dados com acesso restrito e autenticado.
+- O cliente poderá solicitar a exclusão ou portabilidade de seus dados diretamente ao responsável pelo escritório, que deverá atender em prazo razoável.
+- Não haverá compartilhamento de dados com terceiros sem consentimento explícito.
 
 ---
 
 # 7. Planejamento do Projeto
 
-Defina os principais marcos de desenvolvimento.
-
 | Marco | Descrição | Prazo |
 |---|---|---|
-| M1 | Setup do ambiente e prova de conceito | Semana X |
-| M2 | MVP funcional | Semana Y |
-| M3 | Testes e melhorias | Semana Z |
+| M1 | Definição de requisitos, prototipação e setup do ambiente | Semanas 1–2 |
+| M2 | Desenvolvimento do MVP (cadastros, processos e agenda) | Semanas 3–5 |
+| M3 | Integração de notificações e financeiro básico | Semanas 6–7 |
+| M4 | Testes, ajustes e documentação final | Semana 8 |
 
 ---
 
 # 8. Referências
 
-Inclua:
-
-- artigos
-- documentação técnica
-- ferramentas utilizadas
-- repositórios
+- **Claude (Anthropic)** — Auxílio na criação do documento e escolha de arquitetura. Disponível em: https://claude.ai
+- **Lovable** — Criação de mockup da interface do sistema. Disponível em: https://lovable.dev
+- **Excalidraw** — Ferramenta utilizada para criação dos diagramas de caso de uso. Disponível em: https://excalidraw.com
+- **Structurizr** — Geração dos diagramas C4 (Nível 1, 2 e 3). Disponível em: https://structurizr.com/dsl
+- **dbdiagram.io** — Geração do Diagrama Entidade-Relacionamento (DER). Disponível em: https://dbdiagram.io
 
 ---
 
