@@ -466,7 +466,7 @@ Lista dos principais fluxos do sistema **CRM Advocacia — Escritório Lucas Qui
  
 **RN13** — O disparo de mensagens só pode ser realizado para clientes que possuam número de telefone cadastrado. O sistema deve alertar caso o campo esteja vazio.
  
-**RN14** — Mensagens agendadas são processadas em segundo plano por um serviço assíncrono (Azure Functions). O advogado não precisa permanecer na interface para que o disparo ocorra.
+**RN14** — Mensagens agendadas são processadas em segundo plano por um serviço assíncrono (AWS Lambda). O advogado não precisa permanecer na interface para que o disparo ocorra.
  
 **RN15** — O sistema deve registrar o resultado de cada disparo (sucesso ou falha) no histórico do cliente, com data, hora e conteúdo da mensagem enviada.
  
@@ -632,31 +632,7 @@ Esta seção apresenta **a visualização inicial do produto antes da implementa
 
 O sistema possui uma estrutura de navegação lateral fixa, acessível após o login. O advogado pode transitar entre os módulos a qualquer momento sem perder o contexto da tela atual.
 
-```mermaid
-flowchart TD
-    A([Login]) --> B[Dashboard]
-
-    B --> C[Clientes]
-    B --> D[Casos]
-    B --> E[Prazos]
-    B --> F[WhatsApp]
-    B --> G[Configurações]
-
-    C --> C1[Listagem de clientes]
-    C1 --> C2([Modal: Novo cliente])
-    C1 --> C3([Modal: Editar cliente])
-
-    D --> D1[Pipeline Kanban]
-    D1 --> D2([Modal: Novo caso])
-    D1 --> D3([Mover caso entre etapas])
-
-    F --> F1[Aba: Modelos]
-    F --> F2[Aba: Histórico]
-    F1 --> F3([Modal: Novo modelo])
-
-    G --> G1[Perfil do advogado]
-    G --> G2[Estágios do pipeline]
-```
+![Diagrama](assets/images/mermaid.png)
 
 ---
 
@@ -816,11 +792,11 @@ O sistema é composto pelos seguintes containers:
 |---|---|---|
 | Aplicação Web | Next.js / Tailwind CSS | Interface do usuário. O advogado acessa via browser. |
 | API Routes | Next.js (Route Handlers) | Backend embutido. Processa requisições HTTP, aplica regras de negócio e acessa o banco via Prisma ORM. |
-| Agendador de Notificações | Serviço assíncrono | Consulta prazos cadastrados e dispara mensagens WhatsApp e alertas de e-mail nos intervalos definidos. |
+| Agendador de Notificações | AWS Lambda | Consulta prazos cadastrados e dispara mensagens WhatsApp e alertas de e-mail nos intervalos definidos. |
 | Banco de Dados | PostgreSQL | Persistência relacional de clientes, casos, prazos, documentos e histórico de mensagens. |
-| Armazenamento de Arquivos | Azure Blob Storage | Armazena documentos anexados aos casos (petições, contratos, comprovantes). |
+| Armazenamento de Arquivos | Amazon S3 | Armazena documentos anexados aos casos (petições, contratos, comprovantes). |
 
-A Aplicação Web se comunica com as API Routes via REST / JSON. As API Routes acessam o Banco de Dados via Prisma ORM (TCP) e o Armazenamento de Arquivos via Azure SDK. O Agendador de Notificações consulta o banco e aciona a Uazapi / WhatsApp e o Servidor de E-mail.
+A Aplicação Web se comunica com as API Routes via REST / JSON. As API Routes acessam o Banco de Dados via Prisma ORM (TCP) e o Armazenamento de Arquivos via AWS SDK. O Agendador de Notificações consulta o banco e aciona a Uazapi / WhatsApp e o Servidor de E-mail.
 
 ---
 
@@ -836,7 +812,7 @@ O detalhamento interno do container **API Routes (Next.js)** revela quatro camad
 | Controllers | Route Handlers | Recebem as requisições HTTP e delegam a execução para os Services. Ex.: `ClienteController`, `CasoController`, `PrazoController`. |
 | Services | TypeScript | Aplicam as regras de negócio. Ex.: validar unicidade de CPF, substituir variáveis `{{nome}}` e `{{processo}}` no template de mensagem. |
 | Repositories | Prisma ORM | Encapsulam o acesso ao banco de dados. Lêem e persistem dados via Prisma. |
-| Clientes Externos | HTTP Clients | Comunicam com APIs de terceiros. Ex.: `UazapiClient` para WhatsApp e `AzureStorageClient` para upload de documentos. |
+| Clientes Externos | HTTP Clients | Comunicam com APIs de terceiros. Ex.: `UazapiClient` para WhatsApp e `S3Client` para upload de documentos. |
 
 O fluxo interno segue a sequência: **Auth Middleware → Controllers → Services → Repositories** (para persistência) ou **Services → Clientes Externos** (para integrações externas).
 
@@ -998,7 +974,7 @@ Arquivos anexados a casos (petições, contratos, comprovantes).
 | id | uuid | Chave primária |
 | caso_id | uuid | FK → `caso` |
 | tipo_arquivo | varchar(50) | Extensão do arquivo (PDF, DOCX, JPG, PNG, JPEG) |
-| url_storage | varchar | URL do arquivo no Azure Blob Storage |
+| url_storage | varchar | URL do arquivo no Amazon S3 |
 | tamanho_kb | int | Tamanho do arquivo em KB (máx. 10.240 KB) |
 | created_at | timestamp | Data de criação |
 
@@ -1096,13 +1072,13 @@ O sistema é organizado em módulos funcionais que seguem o padrão de camadas d
 
 ### Módulo de Anotações e Documentos
 
-**Responsabilidade:** Permite ao advogado registrar observações textuais e anexar arquivos a casos específicos. O upload de arquivos é validado quanto ao tipo (PDF, DOCX, JPG, PNG, JPEG) e tamanho (máximo 10 MB), sendo armazenado no Azure Blob Storage com a URL persistida no banco (RN17, RN18).
+**Responsabilidade:** Permite ao advogado registrar observações textuais e anexar arquivos a casos específicos. O upload de arquivos é validado quanto ao tipo (PDF, DOCX, JPG, PNG, JPEG) e tamanho (máximo 10 MB), sendo armazenado no Amazon S3 com a URL persistida no banco (RN17, RN18).
 
 **Componentes envolvidos:**
 - `AnotacaoController` / `DocumentoController` — endpoints de criação, listagem e download
-- `DocumentoService` — validação de tipo e tamanho, geração de URL de acesso
+- `DocumentoService` — validação de tipo e tamanho, geração de URL assinada de acesso
 - `AnotacaoRepository` / `DocumentoRepository` — queries sobre `anotacao` e `documento`
-- `AzureStorageClient` — upload e geração de URL via Azure Blob Storage SDK
+- `S3Client` — upload e geração de URL assinada via AWS SDK
 
 ---
 
@@ -1154,11 +1130,17 @@ Escolhido como camada de acesso ao banco de dados por oferecer tipagem automáti
 
 ## Infraestrutura e Deploy
 
-### Azure App Service
-Escolhido para hospedar a aplicação Next.js na nuvem da Microsoft. Oferece suporte nativo a Node.js, deploy via Git ou Docker, SSL configurado automaticamente e escalabilidade gerenciada.
+### AWS Amplify
+Escolhido para hospedar a aplicação Next.js na nuvem da AWS. Oferece suporte nativo a Next.js, deploy automático a partir do repositório GitHub, SSL configurado automaticamente e escalabilidade gerenciada sem necessidade de configurar servidores.
 
-### Azure Database for PostgreSQL
-Banco de dados PostgreSQL gerenciado pela Azure, hospedado na mesma região que o App Service para minimizar a latência entre aplicação e banco. Oferece backups automáticos, SSL habilitado por padrão, alta disponibilidade e sem necessidade de gerenciamento manual do servidor de banco de dados.
+### Amazon RDS (PostgreSQL)
+Banco de dados PostgreSQL gerenciado pela AWS, hospedado na mesma região que o Amplify para minimizar a latência entre aplicação e banco. Oferece backups automáticos, SSL habilitado por padrão, alta disponibilidade e sem necessidade de gerenciamento manual do servidor de banco de dados.
+
+### Amazon S3
+Serviço de armazenamento de objetos utilizado para armazenar documentos anexados aos casos (petições, contratos, comprovantes). Os arquivos são acessados por URL assinada gerada via AWS SDK, garantindo que apenas o usuário autenticado consiga baixar os documentos.
+
+### AWS Lambda + Amazon EventBridge Scheduler
+O agendador de notificações de prazos é implementado como uma função AWS Lambda acionada pelo Amazon EventBridge Scheduler em intervalos regulares. Executa em segundo plano sem necessidade de servidor dedicado, verificando prazos próximos e disparando mensagens via Uazapi (WhatsApp) e e-mail (SMTP).
 
 ---
 
@@ -1171,18 +1153,20 @@ Utilizado em todo o projeto (frontend e backend). Oferece tipagem estática que 
 
 ## Resumo da Stack
 
-| Camada | Tecnologia |
-|---|---|
-| Frontend + Backend | Next.js (App Router) + TypeScript |
-| Banco de dados | PostgreSQL + Prisma ORM |
-| Estilo | Tailwind CSS |
-| Autenticação | NextAuth.js |
-| Hosting | AWS (Amplify + RDS) |
-| CI/CD | GitHub Actions |
-| Análise estática | SonarCloud |
-| Monitoramento | New Relic |
-| Testes | Jest + Testing Library |
-| Versionamento | Git + GitHub |
+| Camada | Tecnologia | Finalidade |
+|---|---|---|
+| Frontend + Backend | Next.js (App Router) + TypeScript | Interface do usuário e API Routes em um único projeto |
+| Banco de dados | PostgreSQL + Prisma ORM | Persistência relacional com queries tipadas e migrations versionadas |
+| Armazenamento de arquivos | Amazon S3 | Upload e recuperação de documentos anexados a casos via URL assinada |
+| Jobs assíncronos | AWS Lambda + EventBridge | Agendamento e disparo automático de notificações de prazos |
+| Estilo | Tailwind CSS | Estilização utilitária, responsividade e consistência visual |
+| Autenticação | NextAuth.js | Gerenciamento de sessão JWT e proteção de rotas |
+| Hosting | AWS Amplify + RDS | Deploy da aplicação Next.js e banco PostgreSQL gerenciado |
+| CI/CD | GitHub Actions | Pipeline automático de build, lint, testes e deploy a cada push |
+| Análise estática | SonarCloud | Verificação contínua de qualidade de código, cobertura e débito técnico |
+| Monitoramento | New Relic | Observabilidade em produção: métricas, traces e alertas de performance |
+| Testes | Jest + Testing Library | Testes unitários de Services e testes de integração de componentes React |
+| Versionamento | Git + GitHub | Controle de versão e colaboração via pull requests |
 
 
 ---
@@ -1192,7 +1176,7 @@ Utilizado em todo o projeto (frontend e backend). Oferece tipagem estática que 
 O sistema adotará práticas básicas de segurança para proteger os dados dos clientes e do escritório:
 
 - **Autenticação** via e-mail e senha com hash (bcrypt), com suporte a sessões expiráveis.
-- **Autorização** baseada em perfis (admin, advogado, secretária), controlando o acesso por funcionalidade.
+- **Autorização** baseada em autenticação única — o acesso é restrito exclusivamente ao advogado titular autenticado (conforme RN02). Não há múltiplos perfis ou níveis de permissão.
 - **Criptografia** de dados sensíveis em trânsito via HTTPS/TLS.
 - **Validação de entradas** no backend para prevenção de SQL Injection e XSS.
 - **Logs de acesso** para rastreabilidade de ações críticas.
@@ -1216,7 +1200,7 @@ O sistema coleta e armazena dados pessoais de clientes, como nome, CPF, e-mail, 
 |---|---|---|
 | M1 | Definição de requisitos, prototipação e setup do ambiente | Semanas 1–2 |
 | M2 | Desenvolvimento do MVP (cadastros, processos e agenda) | Semanas 3–5 |
-| M3 | Integração de notificações e financeiro básico | Semanas 6–7 |
+| M3 | Integração de notificações, WhatsApp e upload de documentos | Semanas 6–7 |
 | M4 | Testes, ajustes e documentação final | Semana 8 |
 
 ---
@@ -1233,15 +1217,56 @@ O sistema coleta e armazena dados pessoais de clientes, como nome, CPF, e-mail, 
 
 # 9. Apêndices
 
-Podem incluir:
+---
 
-- mockups adicionais
-- resultados de pesquisa
-- entrevistas com usuários
-- diagramas complementares
-- links para protótipos ou repositórios
+## A.1 — Repositório do Projeto
 
-Sempre que possível inclua **imagens, protótipos ou referências visuais**.
+O documento RFC e todos os recursos associados (imagens, diagramas e mockups) estão versionados no repositório público do GitHub:
+
+**[github.com/LucasKlemke/PAC-Extensionista-VII---RFC---CRM-Advocacia](https://github.com/LucasKlemke/PAC-Extensionista-VII---RFC---CRM-Advocacia)**
+
+---
+
+## A.2 — Resumo da Conversa com o Interessado
+
+### Identificação
+
+| Campo | Dado |
+|---|---|
+| Nome | Dr. Lucas Quintino |
+| OAB | SC 71.025 |
+| Instagram | [@lucasquintinoo](https://www.instagram.com/lucasquintinoo) |
+
+---
+
+### Contexto da Conversa
+
+A demanda pelo sistema foi levantada a partir de uma conversa direta com o Dr. Lucas Quintino, onde ele descreveu como gerencia seu escritório hoje e o que espera de uma solução.
+
+![Pesquisa com usuários](assets/images/conversa1.png)
+
+![Evidência de interesse](assets/images/conversa2.png)
+
+---
+
+### Transcrição
+
+> **Pesquisador:** Como você faz as coisas aí hoje?
+>
+> **Lucas Quintino:** Cara, é tudo manual, tenho que ficar indo na planilha, pegando um por um, também preciso ficar vendo as conversas o que acaba consumindo bastante tempo.
+>
+> **Lucas Quintino:** Ia ser legal se tivesse um lugar pra centralizar isso tudo, hoje tem o Advbox, mas fica muito caro e complexo pro que eu estou precisando agora.
+>
+> **Lucas Quintino:** Basicamente seria pra centralizar esses dados todos em um só lugar, deixando mais simples o processo.
+
+---
+
+### Pontos-chave levantados
+
+- O controle de clientes é feito **manualmente em planilhas**, sem centralização.
+- O acompanhamento de conversas no WhatsApp **consome tempo** e gera risco de esquecimento.
+- Ferramentas como o **Advbox** foram consideradas, mas rejeitadas por custo elevado e complexidade desnecessária.
+- A necessidade central é **centralizar os dados em um único lugar**, de forma simples e acessível.
 
 ---
 
